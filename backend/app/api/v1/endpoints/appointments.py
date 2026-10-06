@@ -10,6 +10,7 @@ from app.schemas.appointment import (
     AppointmentCancelRequest,
     AppointmentDetailResponse,
 )
+from app.schemas.pagination import PaginatedResponse, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.services.appointment_service import AppointmentService
 
 router = APIRouter()
@@ -18,30 +19,31 @@ appointment_service = AppointmentService()
 
 @router.get(
     "",
-    response_model=list[AppointmentDetailResponse],
+    response_model=PaginatedResponse[AppointmentDetailResponse],
     summary="Listar Agendamentos do Estabelecimento",
-    description="Filtra agendamentos por intervalo de datas, profissional e status com isolamento de tenant.",
+    description="Filtra agendamentos por intervalo de datas, profissional e status com paginação padronizada.",
 )
 async def list_appointments(
     session: DbSession,
     current_user: CurrentUser,
-    start_date: Annotated[datetime, Query(description="Data inicial (ISO 8601)")],
-    end_date: Annotated[datetime, Query(description="Data final (ISO 8601)")],
+    start_date: Annotated[datetime | None, Query(description="Data inicial (ISO 8601)")] = None,
+    end_date: Annotated[datetime | None, Query(description="Data final (ISO 8601)")] = None,
     professional_id: Annotated[uuid.UUID | None, Query(description="Filtrar por profissional")] = None,
     appointment_status: Annotated[AppointmentStatus | None, Query(alias="status")] = None,
-    limit: Annotated[int, Query(ge=1, le=100, description="Limite máximo de registros")] = 50,
-    offset: Annotated[int, Query(ge=0, description="Deslocamento para paginação")] = 0,
-) -> list[AppointmentDetailResponse]:
-    return await appointment_service.list_appointments(
+    page: Annotated[int, Query(ge=1, description="Número da página (1-based)")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE, description="Quantidade por página")] = DEFAULT_PAGE_SIZE,
+) -> PaginatedResponse[AppointmentDetailResponse]:
+    items, total = await appointment_service.list_appointments_paginated(
         session=session,
         establishment_id=current_user.establishment_id,
         start_date=start_date,
         end_date=end_date,
         professional_id=professional_id,
         status=appointment_status,
-        limit=limit,
-        offset=offset,
+        page=page,
+        page_size=page_size,
     )
+    return PaginatedResponse.create(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post(

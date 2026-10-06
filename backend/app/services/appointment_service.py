@@ -229,6 +229,29 @@ class AppointmentService:
         )
         return [self._to_detail_response(a) for a in appointments]
 
+    async def list_appointments_paginated(
+        self,
+        session: AsyncSession,
+        establishment_id: uuid.UUID,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        professional_id: uuid.UUID | None = None,
+        status: AppointmentStatus | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> tuple[list[AppointmentDetailResponse], int]:
+        appointments, total = await self.appointment_repo.list_by_period_paginated(
+            session=session,
+            establishment_id=establishment_id,
+            start_date=start_date,
+            end_date=end_date,
+            professional_id=professional_id,
+            status=status,
+            page=page,
+            page_size=page_size,
+        )
+        return [self._to_detail_response(a) for a in appointments], total
+
     def _to_detail_response(self, a: Appointment) -> AppointmentDetailResponse:
         return AppointmentDetailResponse(
             id=a.id,

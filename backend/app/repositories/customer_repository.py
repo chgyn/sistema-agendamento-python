@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.models.customer import Customer
 from app.repositories.base import BaseRepository
@@ -70,3 +70,23 @@ class CustomerRepository(BaseRepository[Customer]):
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_by_establishment_paginated(
+        self,
+        session: AsyncSession,
+        establishment_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 10,
+        search: str | None = None,
+    ) -> tuple[list[Customer], int]:
+        stmt = select(Customer).where(Customer.establishment_id == establishment_id)
+        if search and search.strip():
+            search_clean = f"%{search.strip().lower()}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(Customer.name).like(search_clean),
+                    Customer.phone.like(f"%{search.strip()}%"),
+                )
+            )
+        stmt = stmt.order_by(Customer.name.asc())
+        return await self.paginate(session, stmt, page=page, page_size=page_size)

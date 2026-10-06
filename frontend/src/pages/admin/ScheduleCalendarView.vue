@@ -13,8 +13,8 @@ const professionals = ref<any[]>([]);
 
 onMounted(async () => {
   try {
-    const res = await api.get('/professionals');
-    professionals.value = res.data;
+    const res = await api.get('/professionals', { params: { all_records: true } });
+    professionals.value = res.data.items || res.data;
   } catch (err) {
     console.error(err);
   }
@@ -28,7 +28,7 @@ watch(selectedDate, async () => {
 async function loadCalendar() {
   const start = `${selectedDate.value}T00:00:00Z`;
   const end = `${selectedDate.value}T23:59:59Z`;
-  await appointmentsStore.fetchAppointments(start, end);
+  await appointmentsStore.fetchAppointments(start, end, undefined, undefined, 1, 100);
 }
 
 function nextDay() {

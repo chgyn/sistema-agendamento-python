@@ -12,6 +12,7 @@ from app.schemas.professional import (
     UnavailabilityCreate,
     UnavailabilityResponse,
 )
+from app.schemas.pagination import PaginatedResponse, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.services.catalog_service import CatalogService
 
 router = APIRouter()
@@ -20,20 +21,32 @@ catalog_service = CatalogService()
 
 @router.get(
     "",
-    response_model=list[ProfessionalResponse],
+    response_model=PaginatedResponse[ProfessionalResponse],
     summary="Listar Profissionais",
-    description="Retorna os profissionais cadastrados para o estabelecimento autenticado.",
+    description="Retorna os profissionais cadastrados para o estabelecimento com paginação e busca.",
 )
 async def list_professionals(
     session: DbSession,
     current_user: CurrentUser,
+    page: Annotated[int, Query(ge=1, description="Número da página (1-based)")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE, description="Quantidade por página")] = DEFAULT_PAGE_SIZE,
     active_only: Annotated[bool, Query(description="Filtrar apenas profissionais ativos")] = False,
     service_id: Annotated[uuid.UUID | None, Query(description="Filtrar por serviço habilitado")] = None,
-) -> list[ProfessionalResponse]:
-    professionals = await catalog_service.list_professionals(
-        session, current_user.establishment_id, active_only=active_only, service_id=service_id
+    search: Annotated[str | None, Query(description="Filtrar por nome ou celular")] = None,
+    all_records: Annotated[bool, Query(description="Retornar todos os profissionais sem corte de página")] = False,
+) -> PaginatedResponse[ProfessionalResponse]:
+    eff_page = 1 if all_records else page
+    eff_page_size = MAX_PAGE_SIZE if all_records else page_size
+    professionals, total = await catalog_service.list_professionals_paginated(
+        session=session,
+        establishment_id=current_user.establishment_id,
+        page=eff_page,
+        page_size=eff_page_size,
+        active_only=active_only,
+        service_id=service_id,
+        search=search,
     )
-    return [
+    items = [
         ProfessionalResponse(
             id=p.id,
             establishment_id=p.establishment_id,
@@ -49,6 +62,7 @@ async def list_professionals(
         )
         for p in professionals
     ]
+    return PaginatedResponse.create(items=items, total=total, page=eff_page, page_size=eff_page_size)
 
 
 @router.post(

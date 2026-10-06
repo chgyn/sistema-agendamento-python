@@ -20,29 +20,63 @@ export interface AppointmentItem {
   created_at: string;
 }
 
+export interface PaginationState {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 export const useAppointmentsStore = defineStore('appointments', () => {
   const appointments = ref<AppointmentItem[]>([]);
   const isLoading = ref(false);
   const errorMessage = ref<string | null>(null);
 
+  const pagination = ref<PaginationState>({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 1,
+  });
+
   async function fetchAppointments(
-    startDate: string,
-    endDate: string,
+    startDate?: string,
+    endDate?: string,
     professionalId?: string,
-    status?: string
+    status?: string,
+    page: number = 1,
+    pageSize: number = 10
   ) {
     isLoading.value = true;
     errorMessage.value = null;
     try {
-      const params: Record<string, string> = {
-        start_date: startDate,
-        end_date: endDate,
+      const params: Record<string, any> = {
+        page,
+        page_size: pageSize,
       };
+      if (startDate) params.start_date = startDate;
+      if (endDate) params.end_date = endDate;
       if (professionalId) params.professional_id = professionalId;
       if (status) params.status = status;
 
       const res = await api.get('/appointments', { params });
-      appointments.value = res.data;
+      if (res.data && Array.isArray(res.data.items)) {
+        appointments.value = res.data.items;
+        pagination.value = {
+          page: res.data.page ?? page,
+          pageSize: res.data.page_size ?? pageSize,
+          total: res.data.total ?? 0,
+          totalPages: res.data.total_pages ?? 1,
+        };
+      } else if (Array.isArray(res.data)) {
+        appointments.value = res.data;
+        pagination.value = {
+          page: 1,
+          pageSize: res.data.length,
+          total: res.data.length,
+          totalPages: 1,
+        };
+      }
     } catch (err: any) {
       errorMessage.value = err.response?.data?.message || 'Erro ao carregar agendamentos.';
     } finally {
@@ -82,6 +116,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
 
   return {
     appointments,
+    pagination,
     isLoading,
     errorMessage,
     fetchAppointments,

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.deps import DbSession, CurrentUser, require_role
 from app.domain.models.user import UserRole
 from app.schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
+from app.schemas.pagination import PaginatedResponse, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.services.catalog_service import CatalogService
 
 router = APIRouter()
@@ -12,19 +13,31 @@ catalog_service = CatalogService()
 
 @router.get(
     "",
-    response_model=list[ServiceResponse],
+    response_model=PaginatedResponse[ServiceResponse],
     summary="Listar Serviços",
-    description="Lista todos os serviços cadastrados para o estabelecimento autenticado.",
+    description="Lista serviços cadastrados para o estabelecimento com paginação e busca.",
 )
 async def list_services(
     session: DbSession,
     current_user: CurrentUser,
+    page: Annotated[int, Query(ge=1, description="Número da página (1-based)")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE, description="Quantidade por página")] = DEFAULT_PAGE_SIZE,
     active_only: Annotated[bool, Query(description="Filtrar apenas serviços ativos")] = False,
-) -> list[ServiceResponse]:
-    services = await catalog_service.list_services(
-        session, current_user.establishment_id, active_only=active_only
+    search: Annotated[str | None, Query(description="Filtrar por nome do serviço")] = None,
+    all_records: Annotated[bool, Query(description="Retornar todos os registros sem corte de página")] = False,
+) -> PaginatedResponse[ServiceResponse]:
+    eff_page = 1 if all_records else page
+    eff_page_size = MAX_PAGE_SIZE if all_records else page_size
+    services, total = await catalog_service.list_services_paginated(
+        session=session,
+        establishment_id=current_user.establishment_id,
+        page=eff_page,
+        page_size=eff_page_size,
+        active_only=active_only,
+        search=search,
     )
-    return [ServiceResponse.model_validate(s) for s in services]
+    items = [ServiceResponse.model_validate(s) for s in services]
+    return PaginatedResponse.create(items=items, total=total, page=eff_page, page_size=eff_page_size)
 
 
 @router.post(

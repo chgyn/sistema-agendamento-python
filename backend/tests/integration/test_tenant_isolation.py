@@ -44,7 +44,7 @@ async def test_tenant_isolation_on_services_and_access(db_session, client: Async
     # 1. Usuário A lista serviços e NÃO deve enxergar o serviço do Estabelecimento B
     resp_list = await client.get("/api/v1/services", headers=headers_a)
     assert resp_list.status_code == 200
-    services_a = resp_list.json()
+    services_a = resp_list.json()["items"]
     service_names = [s["name"] for s in services_a]
     assert "Corte Tradicional" in service_names
     assert "Escova Progressiva" not in service_names

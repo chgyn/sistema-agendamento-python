@@ -1,12 +1,29 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import AdminLayout from '@/components/layout/AdminLayout.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import api from '@/services/api';
 import { Sparkles, Plus, Clock, DollarSign, X } from 'lucide-vue-next';
 
-const services = ref<any[]>([]);
+interface ServiceItem {
+  id: string;
+  name: string;
+  description?: string;
+  duration_minutes: number;
+  price: number;
+  is_active: boolean;
+}
+
+const services = ref<ServiceItem[]>([]);
 const isLoading = ref(false);
 const showAddModal = ref(false);
+
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  totalPages: 1,
+});
 
 const newService = ref({
   name: '',
@@ -16,19 +33,43 @@ const newService = ref({
 });
 
 onMounted(async () => {
-  await fetchServices();
+  await fetchServices(1, pagination.value.pageSize);
 });
 
-async function fetchServices() {
+async function fetchServices(page: number = 1, pageSize: number = pagination.value.pageSize) {
   isLoading.value = true;
   try {
-    const res = await api.get('/services');
-    services.value = res.data;
+    const params = {
+      page,
+      page_size: pageSize,
+    };
+    const res = await api.get('/services', { params });
+    if (res.data && Array.isArray(res.data.items)) {
+      services.value = res.data.items;
+      pagination.value = {
+        page: res.data.page ?? page,
+        pageSize: res.data.page_size ?? pageSize,
+        total: res.data.total ?? 0,
+        totalPages: res.data.total_pages ?? 1,
+      };
+    } else if (Array.isArray(res.data)) {
+      services.value = res.data;
+      pagination.value = {
+        page: 1,
+        pageSize: res.data.length,
+        total: res.data.length,
+        totalPages: 1,
+      };
+    }
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao buscar serviços:', err);
   } finally {
     isLoading.value = false;
   }
+}
+
+function handlePageChange({ page, pageSize }: { page: number; pageSize: number }) {
+  fetchServices(page, pageSize);
 }
 
 async function handleCreateService() {
@@ -36,7 +77,7 @@ async function handleCreateService() {
     await api.post('/services', newService.value);
     showAddModal.value = false;
     newService.value = { name: '', description: '', duration_minutes: 30, price: 50.0 };
-    await fetchServices();
+    await fetchServices(1, pagination.value.pageSize);
   } catch (err: any) {
     alert(err.response?.data?.message || 'Erro ao cadastrar serviço.');
   }
@@ -60,39 +101,61 @@ async function handleCreateService() {
         </button>
       </div>
 
+      <div v-if="isLoading && services.length === 0" class="p-12 text-center text-slate-400 text-xs">
+        Carregando serviços...
+      </div>
+
+      <div v-else-if="!isLoading && services.length === 0" class="p-12 text-center text-slate-500 text-sm">
+        Nenhum serviço cadastrado até o momento.
+      </div>
+
       <!-- Grid de Serviços -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div
-          v-for="service in services"
-          :key="service.id"
-          class="glass-panel p-5 rounded-2xl flex flex-col justify-between space-y-4"
-        >
-          <div>
-            <div class="flex items-start justify-between gap-2">
-              <h3 class="font-bold text-white text-base">{{ service.name }}</h3>
-              <span class="text-sm font-extrabold text-amber-400">
-                R$ {{ Number(service.price).toFixed(2) }}
+      <div v-else class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="service in services"
+            :key="service.id"
+            class="glass-panel p-5 rounded-2xl flex flex-col justify-between space-y-4"
+          >
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <h3 class="font-bold text-white text-base">{{ service.name }}</h3>
+                <span class="text-sm font-extrabold text-amber-400">
+                  R$ {{ Number(service.price).toFixed(2) }}
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-2 line-clamp-2">
+                {{ service.description || 'Sem descrição informada.' }}
+              </p>
+            </div>
+
+            <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center gap-1.5">
+                <Clock class="w-3.5 h-3.5 text-amber-500" />
+                {{ service.duration_minutes }} minutos
+              </span>
+              <span
+                :class="[
+                  'px-2 py-0.5 rounded-full text-[10px] font-semibold border',
+                  service.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
+                ]"
+              >
+                {{ service.is_active ? 'Ativo' : 'Inativo' }}
               </span>
             </div>
-            <p class="text-xs text-slate-400 mt-2 line-clamp-2">
-              {{ service.description || 'Sem descrição informada.' }}
-            </p>
           </div>
+        </div>
 
-          <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-            <span class="flex items-center gap-1.5">
-              <Clock class="w-3.5 h-3.5 text-amber-500" />
-              {{ service.duration_minutes }} minutos
-            </span>
-            <span
-              :class="[
-                'px-2 py-0.5 rounded-full text-[10px] font-semibold border',
-                service.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
-              ]"
-            >
-              {{ service.is_active ? 'Ativo' : 'Inativo' }}
-            </span>
-          </div>
+        <!-- Painel de Paginação -->
+        <div class="glass-panel rounded-2xl overflow-hidden border border-slate-800">
+          <Pagination
+            :page="pagination.page"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :total-pages="pagination.totalPages"
+            :is-loading="isLoading"
+            @change="handlePageChange"
+          />
         </div>
       </div>
 

@@ -55,6 +55,24 @@ class CatalogService:
     ) -> list[Service]:
         return await self.service_repo.list_by_establishment(session, establishment_id, active_only=active_only)
 
+    async def list_services_paginated(
+        self,
+        session: AsyncSession,
+        establishment_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 10,
+        active_only: bool = False,
+        search: str | None = None,
+    ) -> tuple[list[Service], int]:
+        return await self.service_repo.list_by_establishment_paginated(
+            session,
+            establishment_id,
+            page=page,
+            page_size=page_size,
+            active_only=active_only,
+            search=search,
+        )
+
     async def update_service(
         self, session: AsyncSession, service_id: uuid.UUID, establishment_id: uuid.UUID, data: ServiceUpdate
     ) -> Service:
@@ -116,6 +134,26 @@ class CatalogService:
     ) -> list[Professional]:
         return await self.professional_repo.list_by_establishment(
             session, establishment_id, active_only=active_only, service_id=service_id
+        )
+
+    async def list_professionals_paginated(
+        self,
+        session: AsyncSession,
+        establishment_id: uuid.UUID,
+        page: int = 1,
+        page_size: int = 10,
+        active_only: bool = False,
+        service_id: uuid.UUID | None = None,
+        search: str | None = None,
+    ) -> tuple[list[Professional], int]:
+        return await self.professional_repo.list_by_establishment_paginated(
+            session,
+            establishment_id,
+            page=page,
+            page_size=page_size,
+            active_only=active_only,
+            service_id=service_id,
+            search=search,
         )
 
     async def update_professional(

@@ -95,6 +95,38 @@ class AppointmentRepository(BaseRepository[Appointment]):
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_by_period_paginated(
+        self,
+        session: AsyncSession,
+        establishment_id: uuid.UUID,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        professional_id: uuid.UUID | None = None,
+        status: AppointmentStatus | None = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> tuple[list[Appointment], int]:
+        stmt = (
+            select(Appointment)
+            .options(
+                selectinload(Appointment.customer),
+                selectinload(Appointment.professional),
+                selectinload(Appointment.service),
+            )
+            .where(Appointment.establishment_id == establishment_id)
+        )
+        if start_date is not None:
+            stmt = stmt.where(Appointment.start_datetime >= start_date)
+        if end_date is not None:
+            stmt = stmt.where(Appointment.start_datetime <= end_date)
+        if professional_id is not None:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
+        if status is not None:
+            stmt = stmt.where(Appointment.status == status)
+
+        stmt = stmt.order_by(Appointment.start_datetime.asc())
+        return await self.paginate(session, stmt, page=page, page_size=page_size)
+
     async def list_active_for_professional_on_date(
         self,
         session: AsyncSession,

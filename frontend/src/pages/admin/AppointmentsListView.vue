@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import AdminLayout from '@/components/layout/AdminLayout.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
+import Pagination from '@/components/ui/Pagination.vue';
 import { useAppointmentsStore } from '@/stores/appointments';
 import { Clock, Filter, Ban, CheckCircle, AlertTriangle } from 'lucide-vue-next';
 
@@ -16,13 +17,24 @@ const cancellingAppointmentId = ref<string | null>(null);
 const cancelReason = ref('');
 
 onMounted(async () => {
-  await fetchFiltered();
+  await fetchFiltered(1, appointmentsStore.pagination.pageSize);
 });
 
-async function fetchFiltered() {
-  const start = `${startDate.value}T00:00:00Z`;
-  const end = `${endDate.value}T23:59:59Z`;
-  await appointmentsStore.fetchAppointments(start, end, undefined, selectedStatus.value || undefined);
+async function fetchFiltered(page: number = 1, pageSize: number = appointmentsStore.pagination.pageSize) {
+  const start = startDate.value ? `${startDate.value}T00:00:00Z` : undefined;
+  const end = endDate.value ? `${endDate.value}T23:59:59Z` : undefined;
+  await appointmentsStore.fetchAppointments(
+    start,
+    end,
+    undefined,
+    selectedStatus.value || undefined,
+    page,
+    pageSize
+  );
+}
+
+function handlePageChange({ page, pageSize }: { page: number; pageSize: number }) {
+  fetchFiltered(page, pageSize);
 }
 
 function openCancel(id: string) {
@@ -85,7 +97,7 @@ async function confirmCancel() {
         </div>
 
         <button
-          @click="fetchFiltered"
+          @click="fetchFiltered(1, appointmentsStore.pagination.pageSize)"
           class="px-4 py-1.5 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl hover:bg-amber-400 transition cursor-pointer flex items-center gap-1 ml-auto"
         >
           <Filter class="w-3.5 h-3.5" />
@@ -143,6 +155,16 @@ async function confirmCancel() {
             </tbody>
           </table>
         </div>
+
+        <!-- Componente de Paginação -->
+        <Pagination
+          :page="appointmentsStore.pagination.page"
+          :page-size="appointmentsStore.pagination.pageSize"
+          :total="appointmentsStore.pagination.total"
+          :total-pages="appointmentsStore.pagination.totalPages"
+          :is-loading="appointmentsStore.isLoading"
+          @change="handlePageChange"
+        />
       </div>
 
       <!-- Modal de Cancelamento -->

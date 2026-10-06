@@ -20,7 +20,7 @@ const todayStr = new Date().toISOString().split('T')[0];
 onMounted(async () => {
   const start = `${todayStr}T00:00:00Z`;
   const end = `${todayStr}T23:59:59Z`;
-  await appointmentsStore.fetchAppointments(start, end);
+  await appointmentsStore.fetchAppointments(start, end, undefined, undefined, 1, 100);
 });
 
 const todayAppointments = computed(() => appointmentsStore.appointments);

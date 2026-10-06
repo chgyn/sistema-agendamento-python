@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Query
 from app.api.deps import DbSession, CurrentUser
 from app.schemas.customer import CustomerResponse
+from app.schemas.pagination import PaginatedResponse, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.repositories.customer_repository import CustomerRepository
 from app.domain.exceptions import EntityNotFoundError
 
@@ -12,19 +13,26 @@ customer_repo = CustomerRepository()
 
 @router.get(
     "",
-    response_model=list[CustomerResponse],
+    response_model=PaginatedResponse[CustomerResponse],
     summary="Listar Clientes do Estabelecimento",
+    description="Retorna lista paginada de clientes com contagem total e busca opcional por nome ou telefone.",
 )
 async def list_customers(
     session: DbSession,
     current_user: CurrentUser,
-    limit: Annotated[int, Query(ge=1, le=100, description="Limite máximo de registros")] = 50,
-    offset: Annotated[int, Query(ge=0, description="Deslocamento para paginação")] = 0,
-) -> list[CustomerResponse]:
-    customers = await customer_repo.list_by_establishment(
-        session, current_user.establishment_id, limit=limit, offset=offset
+    page: Annotated[int, Query(ge=1, description="Número da página (1-based)")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE, description="Itens por página")] = DEFAULT_PAGE_SIZE,
+    search: Annotated[str | None, Query(description="Filtrar por nome ou celular")] = None,
+) -> PaginatedResponse[CustomerResponse]:
+    customers, total = await customer_repo.list_by_establishment_paginated(
+        session=session,
+        establishment_id=current_user.establishment_id,
+        page=page,
+        page_size=page_size,
+        search=search,
     )
-    return [CustomerResponse.model_validate(c) for c in customers]
+    items = [CustomerResponse.model_validate(c) for c in customers]
+    return PaginatedResponse.create(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get(

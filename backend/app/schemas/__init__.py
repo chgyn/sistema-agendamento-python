@@ -31,8 +31,12 @@ from app.schemas.public import (
     AppointmentPublicResponse,
     TimeSlot,
 )
+from app.schemas.pagination import PaginatedResponse, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 
 __all__ = [
+    "PaginatedResponse",
+    "DEFAULT_PAGE_SIZE",
+    "MAX_PAGE_SIZE",
     "LoginRequest",
     "TokenResponse",
     "TokenPayload",
