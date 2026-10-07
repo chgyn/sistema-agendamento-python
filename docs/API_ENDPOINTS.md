@@ -124,8 +124,50 @@ curl -X POST http://localhost:8000/api/v1/public/barbearia-retro/appointments \
 
 ### 2.4 Listagem Paginada de Agendamentos (`GET /api/v1/appointments`)
 **Query Parameters:**
-- `start_date` (ISO 8601): Data inicial do filtro.
-- `end_date` (ISO 8601): Data final do filtro.
+- `start_date` (ISO 8601, opcional): Data inicial do filtro.
+- `end_date` (ISO 8601, opcional): Data final do filtro.
+- `professional_id` (UUID, opcional): Filtro por profissional.
 - `status` (opcional): Filtro por status (`SCHEDULED`, `CONFIRMED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`).
-- `limit` (int, default=50, max=100): Quantidade máxima de registros.
-- `offset` (int, default=0): Deslocamento para paginação.
+- `page` (int, default=1, min=1): Número da página.
+- `page_size` (int, default=10, min=1, max=100): Quantidade de itens por página.
+
+**Resposta (HTTP 200 OK):**
+```json
+{
+  "items": [
+    {
+      "id": "e4b2d56a-1290-482a-bc3e-09123847a112",
+      "establishment_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      "customer_id": "1e860950-8b4b-4835-9774-706f3e588d36",
+      "customer_name": "Carlos Lima",
+      "customer_phone": "11977778888",
+      "professional_id": "4a123f89-8d76-4e55-9012-3456789abcde",
+      "professional_name": "Bruno Santos",
+      "service_id": "7b891234-5678-90ab-cdef-1234567890ab",
+      "service_name": "Corte Clássico",
+      "start_datetime": "2026-10-07T14:00:00Z",
+      "end_datetime": "2026-10-07T14:45:00Z",
+      "status": "CONFIRMED",
+      "notes": "Cliente novo"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 10,
+  "total_pages": 1
+}
+```
+
+---
+
+### 2.5 Padrão Canônico de Paginação (`PaginatedResponse[T]`)
+
+Todas as listagens administrativas (`/customers`, `/services`, `/professionals`, `/appointments`) obedecem ao contrato padronizado:
+- `page`: Número da página (1-based, default `1`).
+- `page_size`: Quantidade por página (default `10`, max `100`).
+- Retorno:
+  - `items`: Lista dos registros da página.
+  - `total`: Quantidade total de registros encontrados.
+  - `page`: Página atual.
+  - `page_size`: Tamanho de cada página.
+  - `total_pages`: Total de páginas (`ceil(total / page_size)` ou `0` se não houver registros).

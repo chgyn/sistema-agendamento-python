@@ -20,6 +20,7 @@ frontend/src/
 │   │   ├── AdminLayout.vue         # Sidebar retrátil, drawer mobile e perfil
 │   │   └── PublicLayout.vue        # Cabeçalho e rodapé para clientes
 │   └── ui/
+│       ├── Pagination.vue          # Componente reutilizável de paginação e seletor
 │       ├── SlotSelector.vue        # Seletor interativo de horários livres
 │       └── StatusBadge.vue         # Badges coloridos de ciclo de vida
 ├── pages/
